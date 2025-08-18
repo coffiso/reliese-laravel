@@ -4,7 +4,7 @@ namespace {{namespace}};
 
 {{imports}}
 
-final class {{class}} extends {{parent}} {
-
+final class {{class}} extends {{parent}}
+{
 {{body}}
 }
