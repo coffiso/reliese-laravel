@@ -88,7 +88,7 @@ class Classify
 
         $formattedReturnType = $returnType ? ': '.$returnType : '';
 
-        return "\n$doc\t$visibility function $name({$parameters})$formattedReturnType {\n\t\t$body\n\t}\n";
+        return "\n$doc\t$visibility function $name({$parameters})$formattedReturnType\n\t{\n\t\t$body\n\t}\n";
     }
 
     public function mixin($class)
