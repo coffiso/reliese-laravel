@@ -124,11 +124,11 @@ class BelongsToMany implements Relation
         $fields = $this->getPivotFields();
 
         if (! empty($fields)) {
-            $body .= "\n\t\t\t\t\t->withPivot(".$this->parametrize($fields).')';
+            $body .= "\n\t\t\t->withPivot(".$this->parametrize($fields).')';
         }
 
         if ($this->pivot->usesTimestamps()) {
-            $body .= "\n\t\t\t\t\t->withTimestamps()";
+            $body .= "\n\t\t\t->withTimestamps()";
         }
 
         $body .= ';';

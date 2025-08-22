@@ -437,6 +437,11 @@ class Factory
             $properties = array_diff($properties, $excludedConstants);
 
             foreach ($properties as $property) {
+                if ($property === 'created_at' || $property === 'updated_at' || $property === 'deleted_at') {
+                    continue;
+                }
+
+
                 $comment = $columnComments[$property];
                 $constantName = Str::upper(Str::snake($property));
                 $body .= $this->class->constant($constantName, $property, $comment);
@@ -508,6 +513,11 @@ class Factory
         $comments = $model->getHints();
         foreach ($model->getProperties() as $name => $hint) {
 
+            if ($name === 'created_at' || $name === 'updated_at' || $name === 'deleted_at') {
+                // Skip timestamps, they are already handled above
+                continue;
+            }
+
             $body .= (function () use ($comments, $name, $hint): string {
                 $comment = $comments[$name];
                 $document = <<<EOL
@@ -523,12 +533,17 @@ class Factory
 
                 $pascalName = "get" . Str::studly($name);
 
+                if (Str::contains($hint, '|null')) {
+                    $hint = Str::replace('|null', '', $hint);
+                    $hint = '?'.$hint;
+                }
+
                 return $this->class->method(
                     $document,
                     $pascalName,
                     "return \$this->{$name};",
                     [
-                        'returnType' => Str::replace('|', ' | ', $hint),
+                        'returnType' => $hint,
                     ],
                 );
             })();

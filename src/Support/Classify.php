@@ -40,10 +40,7 @@ class Classify
 
         $full = $isFirst ? '' : "\n";
         $full .= <<< EOL
-            /**
-             * カラム名 [{$comment}]
-             */
-            public const {$name} = {$value};
+            public const string {$name} = {$value};
 
         EOL;
 

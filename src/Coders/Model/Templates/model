@@ -1,4 +1,6 @@
-<?php declare(strict_types = 1);
+<?php
+
+declare(strict_types=1);
 
 namespace {{namespace}};
 
@@ -8,8 +10,6 @@ namespace {{namespace}};
  * {{description}}
  *
  * @mixin {{mixin}}
- *
- * @package {{namespace}}
  */
 final class {{class}} extends {{parent}}
 {

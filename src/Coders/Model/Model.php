@@ -262,8 +262,16 @@ class Model
         }
 
         // Track attribute casts, ignoring timestamps
-        if ($cast != 'string' && !in_array($propertyName, [$this->CREATED_AT, $this->UPDATED_AT])) {
-            $this->casts[$propertyName] = $cast;
+        if ($cast != 'string' && !in_array($propertyName, [$this->CREATED_AT, $this->UPDATED_AT, 'self::CREATED_AT', 'self::UPDATED_AT', 'self::DELETED_AT'])) {
+            if ($column->unsigned && $column->type === 'int') {
+                if ($column->nullable) {
+                    $this->casts[$propertyName] = '\App\Models\Eloquent\Casters\PositiveIntegerOrNullCaster::class';
+                } else {
+                    $this->casts[$propertyName] = '\App\Models\Eloquent\Casters\PositiveIntegerCaster::class';
+                }
+            } else {
+                $this->casts[$propertyName] = $cast;
+            }
         }
 
         foreach ($this->config('casts', []) as $pattern => $casting) {
