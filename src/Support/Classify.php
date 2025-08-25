@@ -78,6 +78,9 @@ class Classify
         $visibility = Arr::get($options, 'visibility', 'public');
         $returnType = Arr::get($options, 'returnType', null);
         $parameters = Arr::get($options, 'parameters', '');
+        $isPhpstanIgnoreReturnType = Arr::get($options, 'phpstanIgnoreReturnType', false);
+        $phpstanIgnoreReturnType = $isPhpstanIgnoreReturnType ? "\t\t// @phpstan-ignore return.type\n" : "";
+
         if (is_array($parameters) === true) {
             $parameters = new Collection($parameters);
             $parameters = $parameters->map(fn($v) => "{$v['type']} \${$v['name']}")->join(', ');
@@ -85,7 +88,13 @@ class Classify
 
         $formattedReturnType = $returnType ? ': '.$returnType : '';
 
-        return "\n$doc\t$visibility function $name({$parameters})$formattedReturnType\n\t{\n\t\t$body\n\t}\n";
+        return
+            "\n$doc" .
+            "\t$visibility function $name({$parameters})$formattedReturnType\n" .
+            "\t{\n" .
+            $phpstanIgnoreReturnType .
+            "\t\t$body\n" .
+            "\t}\n";
     }
 
     public function mixin($class)

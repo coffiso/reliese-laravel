@@ -102,7 +102,7 @@ class BelongsToMany implements Relation
         $body .= $this->reference->getQualifiedUserClassName().'::class';
 
         if ($this->needsPivotTable()) {
-            $body .= ', '.Dumper::export($this->pivotTable());
+            $body .= ', '.$this->pivot->getQualifiedUserClassName().'::class';
         }
 
         if ($this->needsForeignKey()) {

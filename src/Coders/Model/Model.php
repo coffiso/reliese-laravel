@@ -28,7 +28,7 @@ class Model
     private $factory;
 
     /**
-     * @var array
+     * @var array<string, array{native_type: string, phpstan_type: string}>
      */
     protected $properties = [];
 
@@ -300,7 +300,11 @@ class Model
 
         // Track PHP type hints
         $hint = $this->phpTypeHint($cast, $column->nullable);
-        $this->properties[$column->name] = $hint;
+        $phpstanHint = $this->phpstanTypeHint($cast, $column);
+        $this->properties[$column->name] = [
+            'native_type' => $hint,
+            'phpstan_type' => $phpstanHint,
+        ];
 
         if ($column->name == $this->getPrimaryKey()) {
             $this->primaryKeyColumn = $column;
@@ -371,7 +375,37 @@ class Model
         }
 
         if ($nullable) {
-            return $type.'|null';
+            return '?'.$type;
+        }
+
+        return $type;
+    }
+
+    /**
+     * @param object{type: string, unsigned: bool, name: string, autoincrement: bool, nullable: bool, default: mixed, comment: string} $column
+     *
+     * @return string
+     */
+    public static function phpstanTypeHint(string $castType, Fluent $column)
+    {
+        $type = $castType;
+        if ($column->type === 'int' && $column->unsigned) {
+            $type = 'positive-int';
+        } else {
+            $type = match ($castType) {
+                'object' => '\stdClass',
+                'array',
+                'json' => 'array',
+                'collection' => '\Illuminate\Support\Collection',
+                'immutable_datetime',
+                'immutable_date' => '\Carbon\CarbonImmutable',
+                'binary' => 'string',
+                default => $castType,
+            };
+        }
+
+        if ($column->nullable) {
+            $type .= '|null';
         }
 
         return $type;
@@ -1087,7 +1121,7 @@ class Model
     }
 
     /**
-     * @return array
+     * @return array<string, array{native_type: string, phpstan_type: string}>
      */
     public function getProperties()
     {

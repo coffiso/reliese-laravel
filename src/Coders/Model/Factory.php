@@ -263,6 +263,9 @@ class Factory
         $dependencies = $this->shortenAndExtractImportableDependencies($mixinTypeHint, $model);
         $template = str_replace('{{mixin}}', $mixinTypeHint, $template);
 
+        $properties = $this->properties($model);
+        $template = str_replace('{{properties}}', $properties, $template);
+
         if ($model->isAuthenticatable() === true) {
             $authenticatable = $model->getAuthenticatable();
             $parentClass = $authenticatable['parent'];
@@ -376,9 +379,9 @@ class Factory
         $annotations = '';
 
         $comments = $model->getHints();
-        foreach ($model->getProperties() as $name => $hint) {
+        foreach ($model->getProperties() as $name => $hints) {
             $comment = $comments[$name];
-            $annotations .= $this->class->annotation('property-read', "$hint \$$name $comment");
+            $annotations .= $this->class->annotation('property-read', "{$hints['phpstan_type']} \$$name $comment");
         }
 
         if ($model->hasRelations()) {
@@ -511,32 +514,29 @@ class Factory
 
         //publicプロパティは危険なので代わりにgetterメソッドを生成する (プロパティゲッター)
         $comments = $model->getHints();
-        foreach ($model->getProperties() as $name => $hint) {
+        foreach ($model->getProperties() as $name => $hints) {
+
+            ['native_type' => $hint, 'phpstan_type' => $phpstanHint] = $hints;
 
             if ($name === 'created_at' || $name === 'updated_at' || $name === 'deleted_at') {
                 // Skip timestamps, they are already handled above
                 continue;
             }
 
-            $body .= (function () use ($comments, $name, $hint): string {
+            $body .= (function () use ($comments, $name, $hint, $phpstanHint): string {
                 $comment = $comments[$name];
                 $document = <<<EOL
                     /**
-                     * {$comment}を取得する
-                     *
                      * @api
                      *
-                     * @return {$hint} {$comment}
+                     * {$comment}を取得する
+                     *
+                     * @return {$phpstanHint} {$comment}
                      */
 
                 EOL;
 
                 $pascalName = "get" . Str::studly($name);
-
-                if (Str::contains($hint, '|null')) {
-                    $hint = Str::replace('|null', '', $hint);
-                    $hint = '?'.$hint;
-                }
 
                 return $this->class->method(
                     $document,
@@ -544,6 +544,7 @@ class Factory
                     "return \$this->{$name};",
                     [
                         'returnType' => $hint,
+                        'phpstanIgnoreReturnType' => true,
                     ],
                 );
             })();
@@ -556,9 +557,9 @@ class Factory
                 HasMany::class => [
                     "document" => <<<EOL
                         /**
-                         * リレーション {$relation->propertyComment()}を取得する
-                         *
                          * @api
+                         *
+                         * リレーション {$relation->propertyComment()}を取得する
                          *
                          * @return {$relation->hint()} リレーション {$relation->propertyComment()}
                          */
@@ -570,15 +571,17 @@ class Factory
                 BelongsTo::class => [
                     "document" => <<<EOL
                         /**
-                         * リレーション {$relation->propertyComment()}を取得する
-                         *
                          * @api
+                         *
+                         * リレーション {$relation->propertyComment()}を取得する
                          *
                          * @return {$relation->hint()} リレーション {$relation->propertyComment()}
                          */
 
                     EOL,
-                    "returnType" => $relation->hint(),
+                    "returnType" => str_contains($relation->hint(), '|null')
+                        ? '?'.str_replace('|null', '', $relation->hint())
+                        : $relation->hint(),
                 ],
                 default => throw new RuntimeException("対応していないリレーション型"),
             };
@@ -591,6 +594,7 @@ class Factory
                 "return \$this->{$name};",
                 [
                     'returnType' => $document["returnType"],
+                    'phpstanIgnoreReturnType' => true,
                 ],
             );
         }
