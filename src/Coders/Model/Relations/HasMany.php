@@ -44,9 +44,9 @@ class HasMany extends HasOneOrMany
                 break;
         }
 
-        if ($this->parent->usesSnakeAttributes()) {
-            return Str::snake($relationName);
-        }
+        //if ($this->parent->usesSnakeAttributes()) {
+        //    return Str::snake($relationName);
+        //}
 
         return Str::camel($relationName);
     }
@@ -62,7 +62,9 @@ class HasMany extends HasOneOrMany
              *
              * {$this->parent->getQualifiedUserClassName()} (One) -> {$this->related->getQualifiedUserClassName()} (Many)
              *
-             * @return \Illuminate\Database\Eloquent\Relations\HasMany<{$this->related->getQualifiedUserClassName()}>
+             * @api
+             *
+             * @return \Illuminate\Database\Eloquent\Relations\HasMany<{$this->related->getQualifiedUserClassName()}, \$this>
              */
 
         EOL;

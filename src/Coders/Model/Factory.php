@@ -527,9 +527,9 @@ class Factory
                 $comment = $comments[$name];
                 $document = <<<EOL
                     /**
-                     * @api
-                     *
                      * {$comment}を取得する
+                     *
+                     * @api
                      *
                      * @return {$phpstanHint} {$comment}
                      */
@@ -557,9 +557,9 @@ class Factory
                 HasMany::class => [
                     "document" => <<<EOL
                         /**
-                         * @api
-                         *
                          * リレーション {$relation->propertyComment()}を取得する
+                         *
+                         * @api
                          *
                          * @return {$relation->hint()} リレーション {$relation->propertyComment()}
                          */
@@ -571,9 +571,9 @@ class Factory
                 BelongsTo::class => [
                     "document" => <<<EOL
                         /**
-                         * @api
-                         *
                          * リレーション {$relation->propertyComment()}を取得する
+                         *
+                         * @api
                          *
                          * @return {$relation->hint()} リレーション {$relation->propertyComment()}
                          */

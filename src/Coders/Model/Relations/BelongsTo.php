@@ -63,9 +63,9 @@ class BelongsTo implements Relation
                 break;
         }
 
-        if ($this->parent->usesSnakeAttributes()) {
-            return Str::snake($relationName);
-        }
+        //if ($this->parent->usesSnakeAttributes()) {
+        //    return Str::snake($relationName);
+        //}
 
         return Str::camel($relationName);
     }
@@ -124,7 +124,9 @@ class BelongsTo implements Relation
              *
              * {$this->parent->getQualifiedUserClassName()} (Many) -> {$this->related->getQualifiedUserClassName()} (One)
              *
-             * @return \Illuminate\Database\Eloquent\Relations\BelongsTo<{$this->related->getQualifiedUserClassName()}, {$this->parent->getQualifiedUserClassName()}>
+             * @api
+             *
+             * @return \Illuminate\Database\Eloquent\Relations\BelongsTo<{$this->related->getQualifiedUserClassName()}, \$this>
              */
 
         EOL;

@@ -24,9 +24,9 @@ class HasOne extends HasOneOrMany
      */
     public function name()
     {
-        if ($this->parent->usesSnakeAttributes()) {
-            return Str::snake($this->related->getClassName());
-        }
+        //if ($this->parent->usesSnakeAttributes()) {
+        //    return Str::snake($this->related->getClassName());
+        //}
 
         return Str::camel($this->related->getClassName());
     }
@@ -42,7 +42,9 @@ class HasOne extends HasOneOrMany
              *
              * {$this->parent->getQualifiedUserClassName()} (One) -> {$this->related->getQualifiedUserClassName()} (One)
              *
-             * @return \Illuminate\Database\Eloquent\Relations\HasOne<{$this->related->getQualifiedUserClassName()}>
+             * @api
+             *
+             * @return \Illuminate\Database\Eloquent\Relations\HasOne<{$this->related->getQualifiedUserClassName()}, \$this>
              */
 
         EOL;
