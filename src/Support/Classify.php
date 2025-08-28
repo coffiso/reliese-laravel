@@ -79,7 +79,7 @@ class Classify
         $returnType = Arr::get($options, 'returnType', null);
         $parameters = Arr::get($options, 'parameters', '');
         $isPhpstanIgnoreReturnType = Arr::get($options, 'phpstanIgnoreReturnType', false);
-        $phpstanIgnoreReturnType = $isPhpstanIgnoreReturnType ? "\t\t// @phpstan-ignore return.type\n" : "";
+        $phpstanIgnoreReturnType = $isPhpstanIgnoreReturnType ? "\t\t// @phpstan-ignore-next-line\n" : "";
 
         if (is_array($parameters) === true) {
             $parameters = new Collection($parameters);
