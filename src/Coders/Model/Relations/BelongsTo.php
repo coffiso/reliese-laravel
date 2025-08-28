@@ -89,8 +89,7 @@ class BelongsTo implements Relation
 
         if ($this->needsOtherKey()) {
             $otherKey = $this->related->usesPropertyConstants()
-                //? $this->related->getQualifiedUserClassName().'::'.strtoupper($this->otherKey())
-                ? 'self::'.strtoupper($this->otherKey())
+                ? $this->related->getQualifiedUserClassName().'::'.strtoupper($this->otherKey())
                 : $this->otherKey();
             $body .= ', '.Dumper::export($otherKey);
         }
