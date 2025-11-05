@@ -541,7 +541,7 @@ class Factory
                 return $this->class->method(
                     $document,
                     $pascalName,
-                    "return \$this->{$name};",
+                    "return \$this->{self::" . Str::upper($name) . "};",
                     [
                         'returnType' => $hint,
                         'phpstanIgnoreReturnType' => true,
