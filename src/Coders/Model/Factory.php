@@ -544,7 +544,7 @@ class Factory
                     "return \$this->{self::" . Str::upper($name) . "};",
                     [
                         'returnType' => $hint,
-                        'phpstanIgnoreReturnType' => true,
+                        'phpstanIgnoreReturnType' => false,
                     ],
                 );
             })();
@@ -594,7 +594,7 @@ class Factory
                 "return \$this->{$name};",
                 [
                     'returnType' => $document["returnType"],
-                    'phpstanIgnoreReturnType' => true,
+                    'phpstanIgnoreReturnType' => false,
                 ],
             );
         }

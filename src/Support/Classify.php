@@ -76,7 +76,7 @@ class Classify
     public function method($doc, $name, $body, $options = [])
     {
         $visibility = Arr::get($options, 'visibility', 'public');
-        $returnType = Arr::get($options, 'returnType', null);
+        $returnType = Arr::get($options, 'returnType');
         $parameters = Arr::get($options, 'parameters', '');
         $isPhpstanIgnoreReturnType = Arr::get($options, 'phpstanIgnoreReturnType', false);
         $phpstanIgnoreReturnType = $isPhpstanIgnoreReturnType ? "\t\t// @phpstan-ignore-next-line\n" : "";
