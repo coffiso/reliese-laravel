@@ -30,7 +30,8 @@ class Column implements \Reliese\Meta\Column
      */
     public static $mappings = [
         'string' => ['varchar', 'text', 'string', 'char', 'enum', 'set', 'tinytext', 'mediumtext', 'longtext', 'longblob', 'mediumblob', 'tinyblob', 'blob'],
-        'datetime' => ['datetime', 'year', 'date', 'time', 'timestamp'],
+        'immutable_datetime' => ['datetime', 'time', 'timestamp'],
+        'immutable_date' => ['year', 'date'],
         'int' => ['bigint', 'int', 'integer', 'tinyint', 'smallint', 'mediumint'],
         'float' => ['float', 'decimal', 'numeric', 'dec', 'fixed', 'double', 'real', 'double precision'],
         'boolean' => ['bit']

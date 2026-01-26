@@ -1,20 +1,17 @@
 <?php
 
-/**
- * Created by Reliese Model.
- */
+declare(strict_types=1);
 
 namespace {{namespace}};
 
 {{imports}}
 
 /**
- * Class {{class}}
- * {{properties}}
+ * {{description}}
  *
- * @package {{namespace}}
+ * @mixin {{mixin}}
  */
-class {{class}} extends {{parent}}
+final class {{class}} extends {{parent}}
 {
 {{body}}
 }

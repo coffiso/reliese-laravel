@@ -63,9 +63,9 @@ class BelongsTo implements Relation
                 break;
         }
 
-        if ($this->parent->usesSnakeAttributes()) {
-            return Str::snake($relationName);
-        }
+        //if ($this->parent->usesSnakeAttributes()) {
+        //    return Str::snake($relationName);
+        //}
 
         return Str::camel($relationName);
     }
@@ -75,13 +75,14 @@ class BelongsTo implements Relation
      */
     public function body()
     {
-        $body = 'return $this->belongsTo(';
+        $body = 'return parent::belongsTo(';
 
         $body .= $this->related->getQualifiedUserClassName().'::class';
 
         if ($this->needsForeignKey()) {
             $foreignKey = $this->parent->usesPropertyConstants()
-                ? $this->parent->getQualifiedUserClassName().'::'.strtoupper($this->foreignKey())
+                //? $this->parent->getQualifiedUserClassName().'::'.strtoupper($this->foreignKey())
+                ? 'self::'.strtoupper($this->foreignKey())
                 : $this->foreignKey();
             $body .= ', '.Dumper::export($foreignKey);
         }
@@ -111,6 +112,33 @@ class BelongsTo implements Relation
         $body .= ';';
 
         return $body;
+    }
+
+    /**
+     * @return string
+     */
+    public function methodDocument()
+    {
+        return <<<EOL
+            /**
+             * {$this->related->getQualifiedUserClassName()} モデルクラスに対する Many To One リレーション
+             *
+             * {$this->parent->getQualifiedUserClassName()} (Many) -> {$this->related->getQualifiedUserClassName()} (One)
+             *
+             * @api
+             *
+             * @return \Illuminate\Database\Eloquent\Relations\BelongsTo<{$this->related->getQualifiedUserClassName()}, \$this>
+             */
+
+        EOL;
+    }
+
+    /**
+     * @return string
+     */
+    public function propertyComment()
+    {
+        return "{$this->parent->getQualifiedUserClassName()} (Many) -> {$this->related->getQualifiedUserClassName()} (One)";
     }
 
     /**

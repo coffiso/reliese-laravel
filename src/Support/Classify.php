@@ -9,6 +9,7 @@ namespace Reliese\Support;
 
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
+use Illuminate\Support\Collection;
 
 class Classify
 {
@@ -27,15 +28,23 @@ class Classify
      * Constant template.
      *
      * @param string $name
-     * @param mixed $value
+     * @param mixed  $value
+     * @param string $comment
+     * @param bool   $isFirst
      *
      * @return string
      */
-    public function constant($name, $value)
+    public function constant($name, $value, $comment, $isFirst = false)
     {
         $value = Dumper::export($value);
 
-        return "\tconst $name = $value;\n";
+        $full = $isFirst ? '' : "\n";
+        $full .= <<< EOL
+            public const string {$name} = {$value};
+
+        EOL;
+
+        return $full;
     }
 
     /**
@@ -50,27 +59,42 @@ class Classify
     public function field($name, $value, $options = [])
     {
         $value = Dumper::export($value);
-        $before = Arr::get($options, 'before', '');
         $visibility = Arr::get($options, 'visibility', 'protected');
         $after = Arr::get($options, 'after', "\n");
 
-        return "$before\t$visibility \$$name = $value;$after";
+        return "\n\t/** {@inheritDoc} */\n\t$visibility \$$name = $value;$after";
     }
 
     /**
+     * @param string $doc
      * @param string $name
      * @param string $body
      * @param array $options
      *
      * @return string
      */
-    public function method($name, $body, $options = [])
+    public function method($doc, $name, $body, $options = [])
     {
         $visibility = Arr::get($options, 'visibility', 'public');
-        $returnType = Arr::get($options, 'returnType', null);
+        $returnType = Arr::get($options, 'returnType');
+        $parameters = Arr::get($options, 'parameters', '');
+        $isPhpstanIgnoreReturnType = Arr::get($options, 'phpstanIgnoreReturnType', false);
+        $phpstanIgnoreReturnType = $isPhpstanIgnoreReturnType ? "\t\t// @phpstan-ignore-next-line\n" : "";
+
+        if (is_array($parameters) === true) {
+            $parameters = new Collection($parameters);
+            $parameters = $parameters->map(fn($v) => "{$v['type']} \${$v['name']}")->join(', ');
+        }
+
         $formattedReturnType = $returnType ? ': '.$returnType : '';
 
-        return "\n\t$visibility function $name()$formattedReturnType\n\t{\n\t\t$body\n\t}\n";
+        return
+            "\n$doc" .
+            "\t$visibility function $name({$parameters})$formattedReturnType\n" .
+            "\t{\n" .
+            $phpstanIgnoreReturnType .
+            "\t\t$body\n" .
+            "\t}\n";
     }
 
     public function mixin($class)

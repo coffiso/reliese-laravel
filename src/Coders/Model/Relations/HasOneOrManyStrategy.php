@@ -64,6 +64,22 @@ class HasOneOrManyStrategy implements Relation
     /**
      * @return string
      */
+    public function methodDocument()
+    {
+        return $this->relation->methodDocument();
+    }
+
+    /**
+     * @return string
+     */
+    public function propertyComment()
+    {
+        return $this->relation->propertyComment();
+    }
+
+    /**
+     * @return string
+     */
     public function returnType()
     {
         return get_class($this->relation) === HasMany::class ?

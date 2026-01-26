@@ -27,6 +27,11 @@ class Blueprint
     protected $table;
 
     /**
+     * @var string
+     */
+    protected $comment = '[テーブルの説明がありません]';
+
+    /**
      * @var \Illuminate\Support\Fluent[]
      */
     protected $columns = [];
@@ -96,6 +101,14 @@ class Blueprint
     }
 
     /**
+     * @return string
+     */
+    public function comment()
+    {
+        return $this->comment;
+    }
+
+    /**
      * @param \Illuminate\Support\Fluent $column
      *
      * @return $this
@@ -103,6 +116,18 @@ class Blueprint
     public function withColumn(Fluent $column)
     {
         $this->columns[$column->name] = $column;
+
+        return $this;
+    }
+
+    /**
+     * @param string $comment
+     *
+     * @return $this
+     */
+    public function withComment(string $comment)
+    {
+        $this->comment = $comment;
 
         return $this;
     }

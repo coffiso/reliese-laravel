@@ -17,7 +17,7 @@ class HasMany extends HasOneOrMany
      */
     public function hint()
     {
-        return '\\'.Collection::class.'|'.$this->related->getQualifiedUserClassName().'[]';
+        return '\\'.Collection::class.'<int, '.$this->related->getQualifiedUserClassName().'>';
     }
 
     /**
@@ -44,11 +44,38 @@ class HasMany extends HasOneOrMany
                 break;
         }
 
-        if ($this->parent->usesSnakeAttributes()) {
-            return Str::snake($relationName);
-        }
+        //if ($this->parent->usesSnakeAttributes()) {
+        //    return Str::snake($relationName);
+        //}
 
         return Str::camel($relationName);
+    }
+
+    /**
+     * @return string
+     */
+    public function methodDocument()
+    {
+        return <<<EOL
+            /**
+             * {$this->related->getQualifiedUserClassName()} モデルクラスに対する One To Many リレーション
+             *
+             * {$this->parent->getQualifiedUserClassName()} (One) -> {$this->related->getQualifiedUserClassName()} (Many)
+             *
+             * @api
+             *
+             * @return \Illuminate\Database\Eloquent\Relations\HasMany<{$this->related->getQualifiedUserClassName()}, \$this>
+             */
+
+        EOL;
+    }
+
+    /**
+     * @return string
+     */
+    public function propertyComment()
+    {
+        return "{$this->parent->getQualifiedUserClassName()} (One) -> {$this->related->getQualifiedUserClassName()} (Many)";
     }
 
     /**

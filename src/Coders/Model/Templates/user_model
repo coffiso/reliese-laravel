@@ -1,10 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace {{namespace}};
 
 {{imports}}
 
-class {{class}} extends {{parent}}
+final class {{class}} extends {{parent}}
 {
 {{body}}
 }

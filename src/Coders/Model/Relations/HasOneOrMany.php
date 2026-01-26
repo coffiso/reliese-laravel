@@ -58,7 +58,7 @@ abstract class HasOneOrMany implements Relation
      */
     public function body()
     {
-        $body = 'return $this->'.$this->method().'(';
+        $body = 'return parent::'.$this->method().'(';
 
         $body .= $this->related->getQualifiedUserClassName().'::class';
 
@@ -71,7 +71,8 @@ abstract class HasOneOrMany implements Relation
 
         if ($this->needsLocalKey()) {
             $localKey = $this->related->usesPropertyConstants()
-                ? $this->related->getQualifiedUserClassName().'::'.strtoupper($this->localKey())
+                //? $this->related->getQualifiedUserClassName().'::'.strtoupper($this->localKey())
+                ? 'self::'.strtoupper($this->localKey())
                 : $this->localKey();
             $body .= ', '.Dumper::export($localKey);
         }

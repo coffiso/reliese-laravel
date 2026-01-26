@@ -100,6 +100,19 @@ class Schema implements \Reliese\Meta\Schema
     /**
      * @param \Reliese\Meta\Blueprint $blueprint
      */
+    protected function fillComment(Blueprint $blueprint)
+    {
+        $comment = $this->arraify(
+            $this->connection->select("SELECT `table_comment` FROM `information_schema`.`tables` WHERE `table_schema` = '{$blueprint->schema()}' AND `table_name` = '{$blueprint->table()}'")
+        )[0]['TABLE_COMMENT'] ?? '';
+        if ($comment !== '') {
+            $blueprint->withComment($comment);
+        }
+    }
+
+    /**
+     * @param \Reliese\Meta\Blueprint $blueprint
+     */
     protected function fillColumns(Blueprint $blueprint)
     {
         $rows = $this->arraify($this->connection->select('SHOW FULL COLUMNS FROM '.$this->wrap($blueprint->qualifiedTable())));
@@ -270,7 +283,8 @@ class Schema implements \Reliese\Meta\Schema
      */
     public static function schemas(Connection $connection)
     {
-        $schemas = $connection->getDoctrineSchemaManager()->listDatabases();
+        //$schemas = $connection->getDoctrineSchemaManager()->listDatabases();
+        $schemas = [];
 
         return array_diff($schemas, [
             'information_schema',
@@ -357,6 +371,7 @@ class Schema implements \Reliese\Meta\Schema
     {
         $blueprint = new Blueprint($this->connection->getName(), $this->schema, $table, $isView);
         $this->fillColumns($blueprint);
+        $this->fillComment($blueprint);
         $this->fillConstraints($blueprint);
         $this->tables[$table] = $blueprint;
     }

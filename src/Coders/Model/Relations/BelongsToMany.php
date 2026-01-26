@@ -69,7 +69,7 @@ class BelongsToMany implements Relation
      */
     public function hint()
     {
-        return '\\'.Collection::class.'|'.$this->reference->getQualifiedUserClassName().'[]';
+        return '\\'.Collection::class.'<int, '.$this->reference->getQualifiedUserClassName().'>';
     }
 
     /**
@@ -85,9 +85,9 @@ class BelongsToMany implements Relation
         if ($this->parent->shouldPluralizeTableName()) {
             $tableName = Str::plural(Str::singular($tableName));
         }
-        if ($this->parent->usesSnakeAttributes()) {
-            return Str::snake($tableName);
-        }
+        //if ($this->parent->usesSnakeAttributes()) {
+        //    return Str::snake($tableName);
+        //}
 
         return Str::camel($tableName);
     }
@@ -97,24 +97,26 @@ class BelongsToMany implements Relation
      */
     public function body()
     {
-        $body = 'return $this->belongsToMany(';
+        $body = 'return parent::belongsToMany(';
 
         $body .= $this->reference->getQualifiedUserClassName().'::class';
 
         if ($this->needsPivotTable()) {
-            $body .= ', '.Dumper::export($this->pivotTable());
+            $body .= ', '.$this->pivot->getQualifiedUserClassName().'::class';
         }
 
         if ($this->needsForeignKey()) {
             $foreignKey = $this->parent->usesPropertyConstants()
-                ? $this->reference->getQualifiedUserClassName().'::'.strtoupper($this->foreignKey())
+                //? $this->reference->getQualifiedUserClassName().'::'.strtoupper($this->foreignKey())
+                ? $this->pivot->getQualifiedUserClassName().'::'.strtoupper($this->foreignKey())
                 : $this->foreignKey();
             $body .= ', '.Dumper::export($foreignKey);
         }
 
         if ($this->needsOtherKey()) {
             $otherKey = $this->reference->usesPropertyConstants()
-                ? $this->reference->getQualifiedUserClassName().'::'.strtoupper($this->otherKey())
+                //? $this->reference->getQualifiedUserClassName().'::'.strtoupper($this->otherKey())
+                ? $this->pivot->getQualifiedUserClassName().'::'.strtoupper($this->otherKey())
                 : $this->otherKey();
             $body .= ', '.Dumper::export($otherKey);
         }
@@ -123,17 +125,44 @@ class BelongsToMany implements Relation
 
         $fields = $this->getPivotFields();
 
-        if (! empty($fields)) {
-            $body .= "\n\t\t\t\t\t->withPivot(".$this->parametrize($fields).')';
-        }
+        //if (! empty($fields)) {
+        //    $body .= "\n\t\t\t->withPivot(".$this->parametrize($fields).')';
+        //}
 
-        if ($this->pivot->usesTimestamps()) {
-            $body .= "\n\t\t\t\t\t->withTimestamps()";
-        }
+        //if ($this->pivot->usesTimestamps()) {
+        //    $body .= "\n\t\t\t->withTimestamps()";
+        //}
 
         $body .= ';';
 
         return $body;
+    }
+
+    /**
+     * @return string
+     */
+    public function methodDocument()
+    {
+        return <<<EOL
+            /**
+             * {$this->reference->getQualifiedUserClassName()} モデルクラスに対する Many To Many リレーション
+             *
+             * {$this->parent->getQualifiedUserClassName()} (Many) -> {$this->reference->getQualifiedUserClassName()} (Many)
+             *
+             * @api
+             *
+             * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany<{$this->reference->getQualifiedUserClassName()}, \$this>
+             */
+
+        EOL;
+    }
+
+    /**
+     * @return string
+     */
+    public function propertyComment()
+    {
+        return "{$this->parent->getQualifiedUserClassName()} (Many) -> {$this->reference->getQualifiedUserClassName()} (Many)";
     }
 
     /**

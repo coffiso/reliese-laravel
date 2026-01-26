@@ -28,4 +28,14 @@ interface Relation
      * @return string
      */
     public function returnType();
+
+    /**
+     * @return string
+     */
+    public function methodDocument();
+
+    /**
+     * @return string
+     */
+    public function propertyComment();
 }

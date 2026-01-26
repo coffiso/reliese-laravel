@@ -8,11 +8,16 @@
 namespace Reliese\Coders\Model;
 
 use Illuminate\Database\DatabaseManager;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Str;
 use Reliese\Meta\Blueprint;
 use Reliese\Meta\SchemaManager;
 use Reliese\Support\Classify;
+use RuntimeException;
 
 class Factory
 {
@@ -252,14 +257,33 @@ class Factory
     {
         $template = str_replace('{{namespace}}', $model->getBaseNamespace(), $template);
         $template = str_replace('{{class}}', $model->getClassName(), $template);
+        $template = str_replace('{{description}}', $model->getDescription(), $template);
+
+        $mixinTypeHint = '\Illuminate\Database\Eloquent\Builder<'.$model->getQualifiedUserClassName().'>';
+        $dependencies = $this->shortenAndExtractImportableDependencies($mixinTypeHint, $model);
+        $template = str_replace('{{mixin}}', $mixinTypeHint, $template);
 
         $properties = $this->properties($model);
-        $dependencies = $this->shortenAndExtractImportableDependencies($properties, $model);
         $template = str_replace('{{properties}}', $properties, $template);
 
-        $parentClass = $model->getParentClass();
-        $dependencies = array_merge($dependencies, $this->shortenAndExtractImportableDependencies($parentClass, $model));
-        $template = str_replace('{{parent}}', $parentClass, $template);
+        if ($model->isAuthenticatable() === true) {
+            $authenticatable = $model->getAuthenticatable();
+            $parentClass = $authenticatable['parent'];
+            $dependency = $this->shortenAndExtractImportableDependencies($parentClass, $model);
+            if (isset($authenticatable['alias']) === true) {
+                $arrayKey = ltrim($authenticatable['parent'], '\\');
+                unset($dependency[$arrayKey]);
+                $dependency[$arrayKey . ' as ' . $authenticatable['alias']] = true;
+                $parentClass = $authenticatable['alias'];
+            }
+
+            $dependencies = array_merge($dependencies, $dependency);
+            $template = str_replace('{{parent}}', $parentClass, $template);
+        } else {
+            $parentClass = $model->getParentClass();
+            $dependencies = array_merge($dependencies, $this->shortenAndExtractImportableDependencies($parentClass, $model));
+            $template = str_replace('{{parent}}', $parentClass, $template);
+        }
 
         $body = $this->body($model);
         $dependencies = array_merge($dependencies, $this->shortenAndExtractImportableDependencies($body, $model));
@@ -288,7 +312,7 @@ class Factory
             }
 
             // Do not import classes from same namespace
-            $inCurrentNamespacePattern = str_replace('\\', '\\\\', "/{$model->getBaseNamespace()}\\[a-zA-Z0-9_]*/");
+            $inCurrentNamespacePattern = str_replace('\\', '\\\\', "/{$model->getBaseNamespace()}\\[a-zA-Z0-9_]*$/");
             if (preg_match($inCurrentNamespacePattern, $dependencyClass)) {
                 continue;
             }
@@ -354,8 +378,10 @@ class Factory
         // Process property annotations
         $annotations = '';
 
-        foreach ($model->getProperties() as $name => $hint) {
-            $annotations .= $this->class->annotation('property', "$hint \$$name");
+        $comments = $model->getHints();
+        foreach ($model->getProperties() as $name => $hints) {
+            $comment = $comments[$name];
+            $annotations .= $this->class->annotation('property-read', "{$hints['phpstan_type']} \$$name $comment");
         }
 
         if ($model->hasRelations()) {
@@ -368,7 +394,7 @@ class Factory
             if ($model->hasProperty($name)) {
                 continue;
             }
-            $annotations .= $this->class->annotation('property', $relation->hint()." \$$name");
+            $annotations .= $this->class->annotation('property-read', "{$relation->hint()} \${$name} {$relation->propertyComment()}");
         }
 
         return $annotations;
@@ -388,19 +414,23 @@ class Factory
         }
 
         $excludedConstants = [];
+        $columnComments = $model->getHints();
 
         if ($model->hasCustomCreatedAtField()) {
-            $body .= $this->class->constant('CREATED_AT', $model->getCreatedAtField());
+            $comment = $columnComments[$model->getCreatedAtField()];
+            $body .= $this->class->constant('CREATED_AT', $model->getCreatedAtField(), $comment);
             $excludedConstants[] = $model->getCreatedAtField();
         }
 
         if ($model->hasCustomUpdatedAtField()) {
-            $body .= $this->class->constant('UPDATED_AT', $model->getUpdatedAtField());
+            $comment = $columnComments[$model->getUpdatedAtField()];
+            $body .= $this->class->constant('UPDATED_AT', $model->getUpdatedAtField(), $comment);
             $excludedConstants[] = $model->getUpdatedAtField();
         }
 
         if ($model->hasCustomDeletedAtField()) {
-            $body .= $this->class->constant('DELETED_AT', $model->getDeletedAtField());
+            $comment = $columnComments[$model->getDeletedAtField()];
+            $body .= $this->class->constant('DELETED_AT', $model->getDeletedAtField(), $comment);
             $excludedConstants[] = $model->getDeletedAtField();
         }
 
@@ -410,8 +440,23 @@ class Factory
             $properties = array_diff($properties, $excludedConstants);
 
             foreach ($properties as $property) {
+                if ($property === 'created_at' || $property === 'updated_at' || $property === 'deleted_at') {
+                    continue;
+                }
+
+
+                $comment = $columnComments[$property];
                 $constantName = Str::upper(Str::snake($property));
-                $body .= $this->class->constant($constantName, $property);
+                $body .= $this->class->constant($constantName, $property, $comment);
+            }
+        }
+
+        // Generate relation name constants adjacent to property/column constants
+        if ($model->hasRelations()) {
+            foreach ($model->getRelations() as $relName => $relation) {
+                $constantName = 'REL_'.Str::upper(Str::snake($relName));
+                $comment = method_exists($relation, 'propertyComment') ? $relation->propertyComment() : $relName;
+                $body .= $this->class->constant($constantName, $relName, $comment);
             }
         }
 
@@ -456,32 +501,123 @@ class Factory
         }
 
         if ($model->hasCasts()) {
-            $body .= $this->class->field('casts', $model->getCasts(), ['before' => "\n"]);
+            $body .= $this->class->field('casts', $model->getCasts());
         }
 
         if ($model->hasHidden() && $model->doesNotUseBaseFiles()) {
-            $body .= $this->class->field('hidden', $model->getHidden(), ['before' => "\n"]);
+            $body .= $this->class->field('hidden', $model->getHidden());
         }
 
         if ($model->hasFillable() && ($model->doesNotUseBaseFiles() || $model->fillableInBaseFiles())) {
-            $body .= $this->class->field('fillable', $model->getFillable(), ['before' => "\n"]);
+            $body .= $this->class->field('fillable', $model->getFillable());
         }
 
         if ($model->hasHints() && $model->usesHints()) {
-            $body .= $this->class->field('hints', $model->getHints(), ['before' => "\n"]);
+            $body .= $this->class->field('hints', $model->getHints());
         }
 
+        // 現状ここの分岐には入らない
         foreach ($model->getMutations() as $mutation) {
-            $body .= $this->class->method($mutation->name(), $mutation->body(), ['before' => "\n"]);
+            $body .= $this->class->method('', $mutation->name(), $mutation->body(), ['before' => "\n"]);
+        }
+
+        //publicプロパティは危険なので代わりにgetterメソッドを生成する (プロパティゲッター)
+        $comments = $model->getHints();
+        foreach ($model->getProperties() as $name => $hints) {
+
+            ['native_type' => $hint, 'phpstan_type' => $phpstanHint] = $hints;
+
+            if ($name === 'created_at' || $name === 'updated_at' || $name === 'deleted_at') {
+                // Skip timestamps, they are already handled above
+                continue;
+            }
+
+            $body .= (function () use ($comments, $name, $hint, $phpstanHint): string {
+                $comment = $comments[$name];
+                $document = <<<EOL
+                    /**
+                     * {$comment}を取得する
+                     *
+                     * @api
+                     *
+                     * @return {$phpstanHint} {$comment}
+                     */
+
+                EOL;
+
+                $pascalName = "get" . Str::studly($name);
+
+                return $this->class->method(
+                    $document,
+                    $pascalName,
+                    "return \$this->{self::" . Str::upper($name) . "};",
+                    [
+                        'returnType' => $hint,
+                        'phpstanIgnoreReturnType' => false,
+                    ],
+                );
+            })();
+        }
+
+        //publicプロパティは危険なので代わりにgetterメソッドを生成する (リレーションゲッター)
+        foreach ($model->getRelations() as $name => $relation) {
+            $document = match ($relation->returnType()) {
+                BelongsToMany::class,
+                HasMany::class => [
+                    "document" => <<<EOL
+                        /**
+                         * リレーション {$relation->propertyComment()}を取得する
+                         *
+                         * @api
+                         *
+                         * @return {$relation->hint()} リレーション {$relation->propertyComment()}
+                         */
+
+                    EOL,
+                    "returnType" => "Collection",
+                ],
+                HasOne::class,
+                BelongsTo::class => [
+                    "document" => <<<EOL
+                        /**
+                         * リレーション {$relation->propertyComment()}を取得する
+                         *
+                         * @api
+                         *
+                         * @return {$relation->hint()} リレーション {$relation->propertyComment()}
+                         */
+
+                    EOL,
+                    "returnType" => str_contains($relation->hint(), '|null')
+                        ? '?'.str_replace('|null', '', $relation->hint())
+                        : $relation->hint(),
+                ],
+                default => throw new RuntimeException("対応していないリレーション型"),
+            };
+
+            $pascalName = "get" . Str::studly($name);
+
+            $relConst = 'REL_'.Str::upper(Str::snake($name));
+
+            $body .= $this->class->method(
+                $document["document"],
+                $pascalName,
+                "return \$this->{self::REL_" . Str::upper(Str::snake($name)) . "};",
+                [
+                    'returnType' => $document["returnType"],
+                    'phpstanIgnoreReturnType' => false,
+                ],
+            );
         }
 
         foreach ($model->getRelations() as $constraint) {
             $body .= $this->class->method(
+                $constraint->methodDocument(),
                 $constraint->name(),
                 $constraint->body(),
                 [
                     'before' => "\n",
-                    'returnType' => $model->definesReturnTypes() ? $constraint->returnType() : null,
+                    'returnType' => $constraint->returnType(),
                 ]
             );
         }

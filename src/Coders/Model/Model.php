@@ -28,7 +28,7 @@ class Model
     private $factory;
 
     /**
-     * @var array
+     * @var array<string, array{native_type: string, phpstan_type: string}>
      */
     protected $properties = [];
 
@@ -81,6 +81,11 @@ class Model
      * @var string
      */
     protected $parentClass;
+
+    /**
+     * @var array
+     */
+    protected $authenticatable;
 
     /**
      * @var bool
@@ -158,11 +163,6 @@ class Model
     protected $relationNameStrategy = '';
 
     /**
-     * @var bool
-     */
-    protected $definesReturnTypes = false;
-
-    /**
      * ModelClass constructor.
      *
      * @param \Reliese\Meta\Blueprint $blueprint
@@ -184,6 +184,7 @@ class Model
     {
         $this->withNamespace($this->config('namespace'));
         $this->withParentClass($this->config('parent'));
+        $this->withAuthenticatable($this->config("authenticatable.{$this->blueprint->table()}", []));
 
         // Timestamps settings
         $this->withTimestamps($this->config('timestamps.enabled', $this->config('timestamps', true)));
@@ -209,8 +210,6 @@ class Model
 
         // Relation name settings
         $this->withRelationNameStrategy($this->config('relation_name_strategy', $this->getDefaultRelationNameStrategy()));
-
-        $this->definesReturnTypes = $this->config('enable_return_types', false);
 
         return $this;
     }
@@ -263,8 +262,16 @@ class Model
         }
 
         // Track attribute casts, ignoring timestamps
-        if ($cast != 'string' && !in_array($propertyName, [$this->CREATED_AT, $this->UPDATED_AT])) {
-            $this->casts[$propertyName] = $cast;
+        if ($cast != 'string' && !in_array($propertyName, [$this->CREATED_AT, $this->UPDATED_AT, 'self::CREATED_AT', 'self::UPDATED_AT', 'self::DELETED_AT'])) {
+            if ($column->unsigned && $column->type === 'int') {
+                if ($column->nullable) {
+                    $this->casts[$propertyName] = '\App\Models\Eloquent\Casters\PositiveIntegerOrNullCaster::class';
+                } else {
+                    $this->casts[$propertyName] = '\App\Models\Eloquent\Casters\PositiveIntegerCaster::class';
+                }
+            } else {
+                $this->casts[$propertyName] = $cast;
+            }
         }
 
         foreach ($this->config('casts', []) as $pattern => $casting) {
@@ -287,11 +294,17 @@ class Model
         // Track comment hints
         if (! empty($column->comment)) {
             $this->hints[$column->name] = $column->comment;
+        } else {
+            $this->hints[$column->name] = $column->name;
         }
 
         // Track PHP type hints
         $hint = $this->phpTypeHint($cast, $column->nullable);
-        $this->properties[$column->name] = $hint;
+        $phpstanHint = $this->phpstanTypeHint($cast, $column);
+        $this->properties[$column->name] = [
+            'native_type' => $hint,
+            'phpstan_type' => $phpstanHint,
+        ];
 
         if ($column->name == $this->getPrimaryKey()) {
             $this->primaryKeyColumn = $column;
@@ -337,7 +350,7 @@ class Model
      *
      * @return string
      */
-    public function phpTypeHint($castType, $nullable)
+    public static function phpTypeHint($castType, $nullable)
     {
         $type = $castType;
 
@@ -352,8 +365,9 @@ class Model
             case 'collection':
                 $type = '\Illuminate\Support\Collection';
                 break;
-            case 'datetime':
-                $type = '\Carbon\Carbon';
+            case 'immutable_datetime':
+            case 'immutable_date':
+                $type = '\Carbon\CarbonImmutable';
                 break;
             case 'binary':
                 $type = 'string';
@@ -361,7 +375,37 @@ class Model
         }
 
         if ($nullable) {
-            return $type.'|null';
+            return '?'.$type;
+        }
+
+        return $type;
+    }
+
+    /**
+     * @param object{type: string, unsigned: bool, name: string, autoincrement: bool, nullable: bool, default: mixed, comment: string} $column
+     *
+     * @return string
+     */
+    public static function phpstanTypeHint(string $castType, Fluent $column)
+    {
+        $type = $castType;
+        if ($column->type === 'int' && $column->unsigned) {
+            $type = 'positive-int';
+        } else {
+            $type = match ($castType) {
+                'object' => '\stdClass',
+                'array',
+                'json' => 'array',
+                'collection' => '\Illuminate\Support\Collection',
+                'immutable_datetime',
+                'immutable_date' => '\Carbon\CarbonImmutable',
+                'binary' => 'string',
+                default => $castType,
+            };
+        }
+
+        if ($column->nullable) {
+            $type .= '|null';
         }
 
         return $type;
@@ -393,6 +437,14 @@ class Model
     public function getQualifiedTable()
     {
         return $this->blueprint->qualifiedTable();
+    }
+
+    /**
+     * @return string
+     */
+    public function getDescription()
+    {
+        return "{$this->getClassName()} モデルクラス\n *\n * {$this->blueprint->comment()}";
     }
 
     /**
@@ -497,6 +549,42 @@ class Model
 
         return $this;
     }
+
+    /**
+     * @param array{table: non-empty-string, parent?: non-empty-string, alias?: non-empty-string} $authenticatable
+     *
+     * @return void
+     */
+    public function withAuthenticatable($authenticatable)
+    {
+        if ($authenticatable === []) {
+            $this->authenticatable = [];
+            return $this;
+        }
+
+        $authenticatable['parent'] = '\\' . ltrim($authenticatable['parent'] ?? Illuminate\Foundation\Auth\User::class, '\\');
+        $this->authenticatable = $authenticatable;
+
+        return $this;
+    }
+
+    /**
+     * @return array{table: non-empty-string, parent: non-empty-string, alias?: non-empty-string}
+     */
+    public function getAuthenticatable()
+    {
+        return $this->authenticatable;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isAuthenticatable()
+    {
+        return $this->authenticatable !== [];
+    }
+
+
 
     /**
      * @return string
@@ -1033,7 +1121,7 @@ class Model
     }
 
     /**
-     * @return array
+     * @return array<string, array{native_type: string, phpstan_type: string}>
      */
     public function getProperties()
     {
@@ -1251,13 +1339,5 @@ class Model
     public function fillableInBaseFiles(): bool
     {
         return $this->config('fillable_in_base_files', false);
-    }
-
-    /**
-     * @return bool
-     */
-    public function definesReturnTypes()
-    {
-        return $this->definesReturnTypes;
     }
 }

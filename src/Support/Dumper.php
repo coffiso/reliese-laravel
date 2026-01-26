@@ -44,7 +44,7 @@ class Dumper
                 return "$key => ".static::export($value, $tabs + 1);
             }, $value, $keys);
 
-            return "[\n$indent".implode(",\n$indent", $array)."\n$closingIndent]";
+            return "[\n$indent".implode(",\n$indent", $array).",\n$closingIndent]";
         }
 
         // Default variable exporting
