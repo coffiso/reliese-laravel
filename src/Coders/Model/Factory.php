@@ -451,6 +451,15 @@ class Factory
             }
         }
 
+        // Generate relation name constants adjacent to property/column constants
+        if ($model->hasRelations()) {
+            foreach ($model->getRelations() as $relName => $relation) {
+                $constantName = 'REL_'.Str::upper(Str::snake($relName));
+                $comment = method_exists($relation, 'propertyComment') ? $relation->propertyComment() : $relName;
+                $body .= $this->class->constant($constantName, $relName, $comment);
+            }
+        }
+
         $body = trim($body, "\n");
         // Separate constants from fields only if there are constants.
         if (! empty($body)) {
@@ -588,10 +597,12 @@ class Factory
 
             $pascalName = "get" . Str::studly($name);
 
+            $relConst = 'REL_'.Str::upper(Str::snake($name));
+
             $body .= $this->class->method(
                 $document["document"],
                 $pascalName,
-                "return \$this->{$name};",
+                "return \$this->{self::REL_" . Str::upper(Str::snake($name)) . "};",
                 [
                     'returnType' => $document["returnType"],
                     'phpstanIgnoreReturnType' => false,
